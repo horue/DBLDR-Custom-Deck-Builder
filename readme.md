@@ -1,6 +1,6 @@
 # DBLDR - Custom Deck Builder (1.6.2)
 
-CartaApp is a Java Swing application designed for creating and managing card decks. It features an intuitive graphical interface for adding, removing, and testing card decks. This readme provides an overview of the application's features and instructions on how to use it.
+Custom Deck Builder is a Java Swing application designed for creating and managing card decks. It features an intuitive graphical interface for adding, removing, and testing card decks. This readme provides an overview of the application's features and instructions on how to use it.
 
 ## Features
 
