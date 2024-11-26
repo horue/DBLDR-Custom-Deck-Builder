@@ -13,7 +13,11 @@ import java.io.FileWriter;
 import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
 import jnafilechooser.api.JnaFileChooser;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -32,7 +36,7 @@ public class CartaApp extends JFrame {
 
 
     public CartaApp() {
-        setTitle("Deck Builder 1.6.2");
+        setTitle("Deck Builder 1.6.3");
         setSize(1528, 865); 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -291,40 +295,61 @@ public class CartaApp extends JFrame {
         repaint();
     }
 
-    private void realizarHandTest() {
-        if (cartas.size() < 13) {
-            JOptionPane.showMessageDialog(this, "Você precisa de pelo menos 13 cartas no deck para realizar o Hand Test.", "Erro", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-    
-        List<Carta> deck = new ArrayList<>(cartas); // Cópia das cartas do deck
-        List<Carta> mao = new ArrayList<>();
-        List<Carta> premios = new ArrayList<>();
-    
-        // Sorteia 7 cartas para a mão
-        for (int i = 0; i < 7; i++) {
-            Carta carta = sortearCarta(deck);
-            mao.add(carta);
-            deck.remove(carta);
-        }
-    
-        // Sorteia 6 cartas para os prêmios
-        for (int i = 0; i < 6; i++) {
-            Carta carta = sortearCarta(deck);
-            premios.add(carta);
-            deck.remove(carta);
-        }
-    
-        // Mostra as cartas sorteadas
-        mostrarCartas(mao, premios);
+private void realizarHandTest() {
+    if (cartas.size() < 13) {
+        JOptionPane.showMessageDialog(this, "Você precisa de pelo menos 13 cartas no deck para realizar o Hand Test.", "Erro", JOptionPane.ERROR_MESSAGE);
+        return;
     }
-    
+
+    // Cria um Map para armazenar a quantidade de cada carta
+    Map<String, Integer> quantidadeCartas = new HashMap<>();
+
+    // Preenche o Map com a quantidade de cada carta
+    for (Carta carta : cartas) {
+        // Aqui, estamos assumindo que "carta.getNumero()" seja único para a carta
+        quantidadeCartas.put(carta.getNumero(), quantidadeCartas.getOrDefault(carta.getNumero(), 0) + 1);
+    }
+
+    // Cria uma lista para o deck com base nas quantidades
+    List<Carta> deck = new ArrayList<>();
+
+    // Preenche o deck com as cartas repetidas conforme a quantidade
+    for (Carta carta : cartas) {
+        int quantidade = quantidadeCartas.get(carta.getNumero());  // Obtém a quantidade de cartas dessa numeração
+        for (int i = 0; i < quantidade; i++) {
+            deck.add(carta); // Adiciona a carta repetidamente
+        }
+    }
+
+    // Embaralha o deck
+    Collections.shuffle(deck);
+
+    // Cria listas para a mão e para os prêmios
+    List<Carta> mao = new ArrayList<>();
+    List<Carta> premios = new ArrayList<>();
+
+    // Sorteia 7 cartas para a mão
+    for (int i = 0; i < 7; i++) {
+        Carta carta = deck.remove(0); // Remove a carta sorteada
+        mao.add(carta);
+    }
+
+    // Sorteia 6 cartas para os prêmios
+    for (int i = 0; i < 6; i++) {
+        Carta carta = deck.remove(0); // Remove a carta sorteada
+        premios.add(carta);
+    }
+
+    // Mostra as cartas sorteadas
+    mostrarCartas(mao, premios);
+}
+    // Alterar a lógica de sortearCarta para garantir que ela esteja considerando a quantidade real de cartas
     private Carta sortearCarta(List<Carta> deck) {
-        int totalCartas = deck.size();
-        int indiceSorteado = (int) (Math.random() * totalCartas);
-        return deck.get(indiceSorteado);
+        // Aqui você pode ajustar para que, ao sortear, a carta seja removida uma vez, mas a quantidade real dela seja levada em conta
+        Random rand = new Random();
+        return deck.get(rand.nextInt(deck.size())); // Sorteia aleatoriamente uma carta do deck
     }
-    
+        
     private void mostrarCartas(List<Carta> mao, List<Carta> premios) {
         JFrame handTestFrame = new JFrame("Hand Test");
         handTestFrame.setSize(800, 500);  // Aumenta a altura para acomodar o botão Retry
@@ -354,28 +379,45 @@ public class CartaApp extends JFrame {
         JPanel buttonPanel = new JPanel();
         JButton retryButton = new JButton("Retry");
         retryButton.addActionListener(e -> {
-            // Realiza um novo Hand Test e atualiza o painel
-            List<Carta> novaMao = new ArrayList<>();
-            List<Carta> novosPremios = new ArrayList<>();
-    
-            // Sorteia 7 cartas para a mão
-            List<Carta> deck = new ArrayList<>(cartas); // Cópia das cartas do deck
-            for (int i = 0; i < 7; i++) {
-                Carta carta = sortearCarta(deck);
-                novaMao.add(carta);
-                deck.remove(carta);
+        // Cria um Map para armazenar a quantidade de cada carta
+        Map<String, Integer> quantidadeCartas = new HashMap<>();
+
+        // Preenche o Map com a quantidade de cada carta no deck
+        for (Carta carta : cartas) {
+            quantidadeCartas.put(carta.getNumero(), quantidadeCartas.getOrDefault(carta.getNumero(), 0) + 1);
+        }
+
+        // Cria uma lista para o deck (com base nas quantidades de cada carta)
+        List<Carta> deck = new ArrayList<>();
+        for (Carta carta : cartas) {
+            int quantidade = quantidadeCartas.get(carta.getNumero());  // Obtém a quantidade de cartas dessa numeração
+            for (int i = 0; i < quantidade; i++) {
+                deck.add(carta); // Adiciona a carta repetidamente
             }
-    
-            // Sorteia 6 cartas para os prêmios
-            for (int i = 0; i < 6; i++) {
-                Carta carta = sortearCarta(deck);
-                novosPremios.add(carta);
-                deck.remove(carta);
-            }
-    
-            // Atualiza o painel de cartas
-            atualizarPainelCartas(panelHandTest, novaMao, novosPremios);
-        });
+        }
+
+        // Embaralha o deck
+        Collections.shuffle(deck);
+
+        // Cria listas para a mão e para os prêmios
+        List<Carta> novaMao = new ArrayList<>();
+        List<Carta> novosPremios = new ArrayList<>();
+
+        // Sorteia 7 cartas para a mão
+        for (int i = 0; i < 7; i++) {
+            Carta carta = deck.remove(0); // Remove a carta sorteada
+            novaMao.add(carta);
+        }
+
+        // Sorteia 6 cartas para os prêmios
+        for (int i = 0; i < 6; i++) {
+            Carta carta = deck.remove(0); // Remove a carta sorteada
+            novosPremios.add(carta);
+        }
+
+        // Atualiza o painel de cartas
+        atualizarPainelCartas(panelHandTest, novaMao, novosPremios);
+    });
         buttonPanel.add(retryButton);
     
         // Adiciona os painéis ao painel principal
