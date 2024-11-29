@@ -36,7 +36,7 @@ public class CartaApp extends JFrame {
 
 
     public CartaApp() {
-        setTitle("Deck Builder 1.6.3");
+        setTitle("Deck Builder 1.7.1");
         setSize(1528, 865); 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -70,6 +70,14 @@ public class CartaApp extends JFrame {
         JButton carregarButton = new JButton("Carregar Deck");
         carregarButton.addActionListener(e -> carregarDecklist());
         toolBar.add(carregarButton);
+
+        JButton exportToTTSButton = new JButton("Export to TTS");
+        exportToTTSButton.addActionListener(e -> exportToTTS());
+        toolBar.add(exportToTTSButton);
+
+        JButton converterButton = new JButton("Convert to TTS"); // Novo botão
+        converterButton.addActionListener(e -> converterCSVParaTSDB()); // Adicione um ActionListener
+        toolBar.add(converterButton);
 
         add(toolBar, BorderLayout.NORTH);
         
@@ -510,7 +518,206 @@ private void realizarHandTest() {
             }
         }
     }
+
+    private void exportToTTS() {
+        // Cria o JnaFileChooser para salvar o arquivo .dbldr
+        JnaFileChooser jnaFileChooser = new JnaFileChooser();
+        jnaFileChooser.setTitle("Save Decklist");
+        jnaFileChooser.addFilter(".dbldr", ".dbldr");
     
+        // Exibe a janela de "Salvar Como"
+        boolean save = jnaFileChooser.showSaveDialog(this);
+    
+        if (save) {
+            // Obtém o arquivo .dbldr selecionado
+            File dbldrFile = jnaFileChooser.getSelectedFile();
+    
+            // Adiciona a extensão .dbldr se não estiver presente
+            if (!dbldrFile.getName().toLowerCase().endsWith(".dbldr")) {
+                dbldrFile = new File(dbldrFile.getAbsolutePath() + ".dbldr");
+            }
+    
+            // Salva o arquivo .dbldr
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(dbldrFile))) {
+                // Escreve as cartas no arquivo
+                for (Carta carta : cartas) {
+                    writer.write(carta.getNomeArquivo() + "," + carta.getNumero() + "," + carta.getImagemCaminhoCompleto());
+                    writer.newLine();
+                }
+    
+                // Mensagem de sucesso
+                JOptionPane.showMessageDialog(this, "Decklist salva com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException e) {
+                e.printStackTrace();
+                // Mensagem de erro
+                JOptionPane.showMessageDialog(this, "Erro ao salvar a decklist.", "Erro", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+    
+            // Define o arquivo TSDB com a mesma base de nome
+            File tsdbFile = new File(dbldrFile.getAbsolutePath().replace(".dbldr", ".tsdb"));
+    
+            // Salva o arquivo TSDB
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(tsdbFile))) {
+                // Escrever variáveis de configuração iniciais
+                bw.write("cardsx=10");
+                bw.newLine();
+                bw.write("cardsy=6");
+                bw.newLine();
+                bw.write("card-width=745");
+                bw.newLine();
+                bw.write("card-height=1040");
+                bw.newLine();
+                bw.write("zoom=0.1");
+                bw.newLine();
+                bw.write("background-color=-16777216");
+                bw.newLine();
+    
+                int maxCols = 10;
+                int maxRows = 6;
+                int currentCol = 0;
+                int currentRow = 0;
+    
+                outerLoop:
+                for (Carta carta : cartas) {
+                    int numero = Integer.parseInt(carta.getNumero()); // Converte a string para inteiro
+                    for (int i = 0; i < numero; i++) {
+                        if (currentCol >= maxCols) {
+                            currentCol = 0;
+                            currentRow++;
+                        }
+                        if (currentRow >= maxRows) {
+                            break outerLoop;
+                        }
+                        bw.write(currentCol + "_" + currentRow + "=" + carta.getImagemCaminhoCompleto().replace("\\", "\\\\"));
+                        bw.newLine();
+                        currentCol++;
+                    }
+                }
+    
+                // Completar o restante com null até 9_5
+                while (currentRow < maxRows) {
+                    if (currentCol >= maxCols) {
+                        currentCol = 0;
+                        currentRow++;
+                    }
+                    if (currentRow < maxRows) {
+                        bw.write(currentCol + "_" + currentRow + "=null");
+                        bw.newLine();
+                        currentCol++;
+                    }
+                }
+    
+                // Mensagem de sucesso
+                JOptionPane.showMessageDialog(this, "TSDB salvo com sucesso!", "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException e) {
+                e.printStackTrace();
+                // Mensagem de erro
+                JOptionPane.showMessageDialog(this, "Erro ao salvar o arquivo TSDB.", "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void converterCSVParaTSDB() {
+        // Cria o JnaFileChooser para abrir o arquivo CSV
+        JnaFileChooser jnaFileChooser = new JnaFileChooser();
+        jnaFileChooser.setTitle("Selecionar Arquivo CSV");
+        jnaFileChooser.addFilter("Deckbuilder", "dbldr");
+    
+        // Exibe a janela de seleção de arquivo
+        boolean open = jnaFileChooser.showOpenDialog(this);
+    
+        if (open) {
+            // Obtém o arquivo CSV selecionado
+            File csvFile = jnaFileChooser.getSelectedFile();
+    
+            // Cria o JnaFileChooser para salvar o arquivo TSDB
+            JnaFileChooser saveFileChooser = new JnaFileChooser();
+            saveFileChooser.setTitle("Salvar Arquivo TSDB");
+            saveFileChooser.addFilter(".tsdb", ".tsdb");
+    
+            // Exibe a janela de "Salvar Como"
+            boolean save = saveFileChooser.showSaveDialog(this);
+    
+            if (save) {
+                // Obtém o arquivo TSDB selecionado para salvar
+                File tsdbFile = saveFileChooser.getSelectedFile();
+    
+                // Adiciona a extensão .tsdb se não estiver presente
+                if (!tsdbFile.getName().toLowerCase().endsWith(".tsdb")) {
+                    tsdbFile = new File(tsdbFile.getAbsolutePath() + ".tsdb");
+                }
+    
+                try (BufferedReader br = new BufferedReader(new FileReader(csvFile));
+                     BufferedWriter bw = new BufferedWriter(new FileWriter(tsdbFile))) {
+    
+                    // Escrever variáveis de configuração iniciais
+                    bw.write("cardsx=10");
+                    bw.newLine();
+                    bw.write("cardsy=6");
+                    bw.newLine();
+                    bw.write("card-width=745");
+                    bw.newLine();
+                    bw.write("card-height=1040");
+                    bw.newLine();
+                    bw.write("zoom=0.1");
+                    bw.newLine();
+                    bw.write("background-color=-16777216");
+                    bw.newLine();
+    
+                    String line;
+                    int index = 0;
+                    int maxCols = 10;
+                    int maxRows = 6;
+                    int currentCol = 0;
+                    int currentRow = 0;
+    
+                    while ((line = br.readLine()) != null) {
+                        String[] parts = line.split(",");
+                        if (parts.length == 3) {
+                            String cardName = parts[0];
+                            int quantity = Integer.parseInt(parts[1]);
+                            String path = parts[2].replace("\\", "\\\\"); // Corrigir caminho
+    
+                            for (int i = 0; i < quantity; i++) {
+                                if (currentCol >= maxCols) {
+                                    currentCol = 0;
+                                    currentRow++;
+                                }
+                                if (currentRow >= maxRows) {
+                                    break;
+                                }
+                                bw.write(currentCol + "_" + currentRow + "=" + path);
+                                bw.newLine();
+                                currentCol++;
+                                index++;
+                            }
+                        }
+                    }
+    
+                    // Completar o restante com null até 9_5
+                    while (currentRow < maxRows) {
+                        if (currentCol >= maxCols) {
+                            currentCol = 0;
+                            currentRow++;
+                        }
+                        if (currentRow < maxRows) {
+                            bw.write(currentCol + "_" + currentRow + "=null");
+                            bw.newLine();
+                            currentCol++;
+                        }
+                    }
+    
+                    // Mensagem de sucesso
+                    JOptionPane.showMessageDialog(this, "Conversão concluída: " + tsdbFile.getAbsolutePath(), "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    // Mensagem de erro
+                    JOptionPane.showMessageDialog(this, "Erro ao converter o arquivo.", "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
+    }
     
     
     
